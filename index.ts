@@ -7,6 +7,12 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-03-31.basil",
 });
 
+async function saveToCSV(customers: any[], outputFile: string) {
+  const csv = Papa.unparse(customers);
+  fs.writeFileSync(outputFile, csv);
+  console.log(`💾 CSV file updated with ${customers.length} customers`);
+}
+
 async function main() {
   try {
     const outputFile = "customers.csv";
@@ -35,7 +41,9 @@ async function main() {
       });
 
       totalSubscriptions += stripeSubscriptions.data.length;
-      console.log(`📥 Fetched ${stripeSubscriptions.data.length} subscriptions (Total: ${totalSubscriptions})`);
+      console.log(
+        `📥 Fetched ${stripeSubscriptions.data.length} subscriptions (Total: ${totalSubscriptions})`
+      );
 
       // Process each subscription in the current batch
       for (const stripeSub of stripeSubscriptions.data) {
@@ -61,8 +69,8 @@ async function main() {
 
         // Get plan details
         const planId =
-          stripeSub.items.data[0]?.price.nickname ||
-          stripeSub.items.data[0]?.price.id;
+          stripeSub.items.data[0]?.price.id ||
+          stripeSub.items.data[0]?.price.nickname;
 
         // Add customer to array
         customers.push({
@@ -70,25 +78,27 @@ async function main() {
           name: stripeCustomer.name || "",
           email: stripeCustomer.email || "",
           plan: planId || "Unknown Plan",
-          address: `${stripeCustomer.address.line1}, ${stripeCustomer.address.city}, ${stripeCustomer.address.country}`,
+          state: stripeCustomer.address.state || "",
+          city: stripeCustomer.address.city || "",
+          postal_code: stripeCustomer.address.postal_code || "",
         });
       }
+
+      // Save progress after each batch
+      await saveToCSV(customers, outputFile);
 
       // Update pagination parameters
       hasMore = stripeSubscriptions.has_more;
       if (hasMore && stripeSubscriptions.data.length > 0) {
-        lastSubscriptionId = stripeSubscriptions.data[stripeSubscriptions.data.length - 1].id;
+        lastSubscriptionId =
+          stripeSubscriptions.data[stripeSubscriptions.data.length - 1].id;
       }
     }
 
     console.log(`\n📊 Processing Summary:`);
     console.log(`   - Total subscriptions fetched: ${totalSubscriptions}`);
     console.log(`   - Total customers exported: ${customers.length}`);
-
-    console.log("\n💾 Saving CSV file...");
-    const csv = Papa.unparse(customers);
-    fs.writeFileSync(outputFile, csv);
-    console.log("✅ CSV file created successfully!");
+    console.log("✅ Process completed successfully!");
   } catch (error) {
     console.error("❌ Error:", error);
   }
