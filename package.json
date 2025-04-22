@@ -9,10 +9,12 @@
   "dependencies": {
     "dotenv": "^16.5.0",
     "exceljs": "^4.4.0",
+    "papaparse": "^5.5.2",
     "stripe": "^18.0.0"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "@types/papaparse": "^5.3.15"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"

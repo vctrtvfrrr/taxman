@@ -1,5 +1,6 @@
 import "dotenv/config";
-import ExcelJS from "exceljs";
+import fs from "fs";
+import Papa from "papaparse";
 import Stripe from "stripe";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -8,19 +9,16 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 async function main() {
   try {
-    console.log("🚀 Starting customer export process...");
+    const outputFile = "customers.csv";
+    let customers: any[] = [];
 
-    console.log("📊 Creating Excel file...");
-    const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet("Customers");
-
-    worksheet.columns = [
-      { header: "ID", key: "id" },
-      { header: "Name", key: "name" },
-      { header: "Email", key: "email" },
-      { header: "Subscription Plan", key: "plan" },
-      { header: "Address", key: "address" },
-    ];
+    // Check if file exists and load it
+    if (fs.existsSync(outputFile)) {
+      console.log("📂 Loading existing CSV file...");
+      const fileContent = fs.readFileSync(outputFile, "utf-8");
+      const result = Papa.parse(fileContent, { header: true });
+      customers = result.data;
+    }
 
     // Fetch active subscriptions from Stripe
     console.log("🔍 Fetching active subscriptions from Stripe...");
@@ -55,7 +53,11 @@ async function main() {
       const stripeCustomer = stripeSub.customer as Stripe.Customer;
 
       // Check if customer has address
-      if (!stripeCustomer.address) {
+      if (
+        !stripeCustomer.address ||
+        stripeCustomer.address.country !== "US" ||
+        !["NY", "KY", "HI"].includes(stripeCustomer.address.state!)
+      ) {
         skippedCount++;
         continue;
       }
@@ -65,8 +67,8 @@ async function main() {
         stripeSub.items.data[0]?.price.nickname ||
         stripeSub.items.data[0]?.price.id;
 
-      // Add row to Excel
-      worksheet.addRow({
+      // Add customer to array
+      customers.push({
         id: stripeCustomer.id,
         name: stripeCustomer.name || "",
         email: stripeCustomer.email || "",
@@ -82,9 +84,10 @@ async function main() {
     console.log(`   - Skipped subscriptions: ${skippedCount}`);
     console.log(`   - Exported customers: ${exportedCount}`);
 
-    console.log("\n💾 Saving Excel file...");
-    await workbook.xlsx.writeFile("customers.xlsx");
-    console.log("✅ Excel file created successfully!");
+    console.log("\n💾 Saving CSV file...");
+    const csv = Papa.unparse(customers);
+    fs.writeFileSync(outputFile, csv);
+    console.log("✅ CSV file created successfully!");
   } catch (error) {
     console.error("❌ Error:", error);
   }
