@@ -3,6 +3,9 @@ import fs from "fs";
 import Papa from "papaparse";
 import Stripe from "stripe";
 
+const CUSTOMERS_FILE = "customers.csv";
+const CURSOR_FILE = "cursor.txt";
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-03-31.basil",
 });
@@ -13,23 +16,45 @@ async function saveToCSV(customers: any[], outputFile: string) {
   console.log(`💾 CSV file updated with ${customers.length} customers`);
 }
 
+async function saveCursor(cursor: string | undefined) {
+  if (cursor) {
+    fs.writeFileSync(CURSOR_FILE, cursor);
+    console.log(`📝 Cursor saved: ${cursor}`);
+  } else {
+    // If no cursor, remove the file to indicate completion
+    if (fs.existsSync(CURSOR_FILE)) {
+      fs.unlinkSync(CURSOR_FILE);
+    }
+  }
+}
+
+async function loadCursor(): Promise<string | undefined> {
+  if (fs.existsSync(CURSOR_FILE)) {
+    const cursor = fs.readFileSync(CURSOR_FILE, "utf-8").trim();
+    console.log(`📝 Resuming from cursor: ${cursor}`);
+    return cursor;
+  }
+  return undefined;
+}
+
 async function main() {
   try {
-    const outputFile = "customers.csv";
     let customers: any[] = [];
 
     // Check if file exists and load it
-    if (fs.existsSync(outputFile)) {
+    if (fs.existsSync(CUSTOMERS_FILE)) {
       console.log("📂 Loading existing CSV file...");
-      const fileContent = fs.readFileSync(outputFile, "utf-8");
+      const fileContent = fs.readFileSync(CUSTOMERS_FILE, "utf-8");
       const result = Papa.parse(fileContent, { header: true });
       customers = result.data;
     }
 
+    // Load the last cursor if it exists
+    let lastSubscriptionId = await loadCursor();
+
     // Fetch all active subscriptions from Stripe using pagination
     console.log("🔍 Fetching active subscriptions from Stripe...");
     let hasMore = true;
-    let lastSubscriptionId: string | undefined;
     let totalSubscriptions = 0;
 
     while (hasMore) {
@@ -85,13 +110,17 @@ async function main() {
       }
 
       // Save progress after each batch
-      await saveToCSV(customers, outputFile);
+      await saveToCSV(customers, CUSTOMERS_FILE);
 
-      // Update pagination parameters
+      // Update pagination parameters and save cursor
       hasMore = stripeSubscriptions.has_more;
       if (hasMore && stripeSubscriptions.data.length > 0) {
         lastSubscriptionId =
           stripeSubscriptions.data[stripeSubscriptions.data.length - 1].id;
+        await saveCursor(lastSubscriptionId);
+      } else {
+        // If no more data, remove the cursor file
+        await saveCursor(undefined);
       }
     }
 
