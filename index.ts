@@ -63,8 +63,6 @@ async function main() {
     console.log("Excel file has been created successfully!");
   } catch (error) {
     console.error("Error:", error);
-  } finally {
-    process.exit(0);
   }
 }
 
