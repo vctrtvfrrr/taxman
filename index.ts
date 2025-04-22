@@ -20,69 +20,70 @@ async function main() {
       customers = result.data;
     }
 
-    // Fetch active subscriptions from Stripe
+    // Fetch all active subscriptions from Stripe using pagination
     console.log("🔍 Fetching active subscriptions from Stripe...");
-    const stripeSubscriptions = await stripe.subscriptions.list({
-      status: "active",
-      expand: ["data.customer"],
-    });
+    let hasMore = true;
+    let lastSubscriptionId: string | undefined;
+    let totalSubscriptions = 0;
 
-    console.log(
-      `✅ Found ${stripeSubscriptions.data.length} active subscriptions`
-    );
-
-    let processedCount = 0;
-    let skippedCount = 0;
-    let exportedCount = 0;
-
-    // Process each subscription
-    console.log("🔄 Processing subscriptions...");
-    for (const stripeSub of stripeSubscriptions.data) {
-      processedCount++;
-
-      // Skip if no customer data or if customer is deleted
-      if (
-        !stripeSub.customer ||
-        typeof stripeSub.customer === "string" ||
-        stripeSub.customer.deleted
-      ) {
-        skippedCount++;
-        continue;
-      }
-
-      const stripeCustomer = stripeSub.customer as Stripe.Customer;
-
-      // Check if customer has address
-      if (
-        !stripeCustomer.address ||
-        stripeCustomer.address.country !== "US" ||
-        !["NY", "KY", "HI"].includes(stripeCustomer.address.state!)
-      ) {
-        skippedCount++;
-        continue;
-      }
-
-      // Get plan details
-      const planId =
-        stripeSub.items.data[0]?.price.nickname ||
-        stripeSub.items.data[0]?.price.id;
-
-      // Add customer to array
-      customers.push({
-        id: stripeCustomer.id,
-        name: stripeCustomer.name || "",
-        email: stripeCustomer.email || "",
-        plan: planId || "Unknown Plan",
-        address: `${stripeCustomer.address.line1}, ${stripeCustomer.address.city}, ${stripeCustomer.address.country}`,
+    while (hasMore) {
+      const stripeSubscriptions = await stripe.subscriptions.list({
+        status: "active",
+        expand: ["data.customer"],
+        starting_after: lastSubscriptionId,
+        limit: 100, // Maximum allowed by Stripe
       });
 
-      exportedCount++;
+      totalSubscriptions += stripeSubscriptions.data.length;
+      console.log(`📥 Fetched ${stripeSubscriptions.data.length} subscriptions (Total: ${totalSubscriptions})`);
+
+      // Process each subscription in the current batch
+      for (const stripeSub of stripeSubscriptions.data) {
+        // Skip if no customer data or if customer is deleted
+        if (
+          !stripeSub.customer ||
+          typeof stripeSub.customer === "string" ||
+          stripeSub.customer.deleted
+        ) {
+          continue;
+        }
+
+        const stripeCustomer = stripeSub.customer as Stripe.Customer;
+
+        // Check if customer has address
+        if (
+          !stripeCustomer.address ||
+          stripeCustomer.address.country !== "US" ||
+          !["NY", "KY", "HI"].includes(stripeCustomer.address.state!)
+        ) {
+          continue;
+        }
+
+        // Get plan details
+        const planId =
+          stripeSub.items.data[0]?.price.nickname ||
+          stripeSub.items.data[0]?.price.id;
+
+        // Add customer to array
+        customers.push({
+          id: stripeCustomer.id,
+          name: stripeCustomer.name || "",
+          email: stripeCustomer.email || "",
+          plan: planId || "Unknown Plan",
+          address: `${stripeCustomer.address.line1}, ${stripeCustomer.address.city}, ${stripeCustomer.address.country}`,
+        });
+      }
+
+      // Update pagination parameters
+      hasMore = stripeSubscriptions.has_more;
+      if (hasMore && stripeSubscriptions.data.length > 0) {
+        lastSubscriptionId = stripeSubscriptions.data[stripeSubscriptions.data.length - 1].id;
+      }
     }
 
-    console.log("\n📊 Processing Summary:");
-    console.log(`   - Total subscriptions processed: ${processedCount}`);
-    console.log(`   - Skipped subscriptions: ${skippedCount}`);
-    console.log(`   - Exported customers: ${exportedCount}`);
+    console.log(`\n📊 Processing Summary:`);
+    console.log(`   - Total subscriptions fetched: ${totalSubscriptions}`);
+    console.log(`   - Total customers exported: ${customers.length}`);
 
     console.log("\n💾 Saving CSV file...");
     const csv = Papa.unparse(customers);
