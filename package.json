@@ -2,7 +2,16 @@
   "name": "taxman",
   "module": "src/index.ts",
   "type": "module",
+  "scripts": {
+    "start": "bun run src/index.ts"
+  },
   "dependencies": {
+    "@types/pg": "^8.11.13",
+    "dotenv": "^16.5.0",
+    "drizzle-orm": "^0.42.0",
+    "exceljs": "^4.4.0",
+    "postgres": "^3.4.5",
+    "stripe": "^18.0.0"
   },
   "devDependencies": {
     "@types/bun": "latest"
