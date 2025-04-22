@@ -1,0 +1,13 @@
+{
+  "name": "taxman",
+  "module": "src/index.ts",
+  "type": "module",
+  "dependencies": {
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
