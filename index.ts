@@ -8,11 +8,16 @@ const CURSOR_FILE = "cursor.txt";
 
 // Get status from command line arguments and validate it
 const validStatuses = ["active", "past_due"] as const;
-type StripeSubscriptionStatus = typeof validStatuses[number];
+type StripeSubscriptionStatus = (typeof validStatuses)[number];
 
 const statusArg = process.argv[2];
-if (!statusArg || !validStatuses.includes(statusArg as StripeSubscriptionStatus)) {
-  console.error("❌ Error: Status parameter is required and must be either 'active' or 'past_due'");
+if (
+  !statusArg ||
+  !validStatuses.includes(statusArg as StripeSubscriptionStatus)
+) {
+  console.error(
+    "❌ Error: Status parameter is required and must be either 'active' or 'past_due'"
+  );
   console.error("Usage: bun index.ts <status>");
   console.error("Example: bun index.ts active");
   process.exit(1);
@@ -44,12 +49,12 @@ async function saveCursor(cursor: string | undefined) {
   if (cursor) {
     fs.writeFileSync(CURSOR_FILE, cursor);
     console.log(`📝 Cursor saved: ${cursor}`);
-  } else {
-    // If no cursor, remove the file to indicate completion
-    if (fs.existsSync(CURSOR_FILE)) {
-      fs.unlinkSync(CURSOR_FILE);
-    }
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    return;
   }
+
+  // If no cursor, remove the file to indicate completion
+  if (fs.existsSync(CURSOR_FILE)) fs.unlinkSync(CURSOR_FILE);
 }
 
 async function loadCursor(): Promise<string | undefined> {
@@ -80,6 +85,7 @@ async function main() {
     console.log("🔍 Fetching active subscriptions from Stripe...");
     let hasMore = true;
     let totalSubscriptions = 0;
+    let totalCustomers = 0;
 
     while (hasMore) {
       const stripeSubscriptions = await stripe.subscriptions.list({
@@ -96,6 +102,14 @@ async function main() {
 
       // Process each subscription in the current batch
       for (const stripeSub of stripeSubscriptions.data) {
+        totalCustomers++;
+        console.log(
+          `Processing customer ${totalCustomers} of ${totalSubscriptions} - ${stripeSub.id}`
+        );
+
+        // Save the cursor after processing each customer
+        await saveCursor(stripeSub.id);
+
         // Skip if no customer data or if customer is deleted
         if (
           !stripeSub.customer ||
@@ -131,17 +145,16 @@ async function main() {
           city: stripeCustomer.address.city || "",
           postal_code: stripeCustomer.address.postal_code || "",
         });
+
+        // Save customers to CSV
+        await saveToCSV(customers, CUSTOMERS_FILE);
       }
 
-      // Save progress after each batch
-      await saveToCSV(customers, CUSTOMERS_FILE);
-
-      // Update pagination parameters and save cursor
+      // Update pagination parameters
       hasMore = stripeSubscriptions.has_more;
       if (hasMore && stripeSubscriptions.data.length > 0) {
         lastSubscriptionId =
           stripeSubscriptions.data[stripeSubscriptions.data.length - 1].id;
-        await saveCursor(lastSubscriptionId);
       } else {
         // If no more data, remove the cursor file
         await saveCursor(undefined);
