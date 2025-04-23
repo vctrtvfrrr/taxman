@@ -6,6 +6,20 @@ import Stripe from "stripe";
 const CUSTOMERS_FILE = "customers.csv";
 const CURSOR_FILE = "cursor.txt";
 
+// Get status from command line arguments and validate it
+const validStatuses = ["active", "past_due"] as const;
+type StripeSubscriptionStatus = typeof validStatuses[number];
+
+const statusArg = process.argv[2];
+if (!statusArg || !validStatuses.includes(statusArg as StripeSubscriptionStatus)) {
+  console.error("❌ Error: Status parameter is required and must be either 'active' or 'past_due'");
+  console.error("Usage: bun index.ts <status>");
+  console.error("Example: bun index.ts active");
+  process.exit(1);
+}
+
+const STATUS: StripeSubscriptionStatus = statusArg as StripeSubscriptionStatus;
+
 interface CustomerData {
   id: string;
   name: string;
@@ -69,7 +83,7 @@ async function main() {
 
     while (hasMore) {
       const stripeSubscriptions = await stripe.subscriptions.list({
-        status: "active",
+        status: STATUS,
         expand: ["data.customer"],
         starting_after: lastSubscriptionId,
         limit: 100, // Maximum allowed by Stripe
