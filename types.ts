@@ -4,7 +4,7 @@ export type CustomerData = {
   id: string;
   name: string;
   email: string;
-  plan: string;
+  subscription: string;
   state: string;
   city: string;
   postal_code: string;

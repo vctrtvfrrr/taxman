@@ -111,7 +111,7 @@ export class GenerateCsvCommand {
             id: stripeCustomer.id,
             name: stripeCustomer.name || "",
             email: stripeCustomer.email || "",
-            plan: planId || "",
+            subscription: stripeSub.id,
             state: stripeCustomer.address.state || "",
             city: stripeCustomer.address.city || "",
             postal_code: stripeCustomer.address.postal_code || "",
