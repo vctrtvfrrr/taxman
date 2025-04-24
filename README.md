@@ -9,6 +9,7 @@ Taxman is a command-line tool developed in TypeScript that integrates with the S
 - Implements pagination to handle large data volumes
 - Maintains a cursor to allow resuming interrupted exports
 - Integrates customer data with subscription information
+- Processes customer data from generated CSV files
 
 ## Prerequisites
 
@@ -33,14 +34,26 @@ STRIPE_SECRET_KEY=your_secret_key_here
 
 ## Usage
 
-The script requires a mandatory parameter that defines the subscription status to be exported:
+The tool supports multiple commands for different operations:
+
+### Generate CSV
+
+Export customer subscription data to a CSV file:
 
 ```bash
 # To export active subscriptions
-bun run start active
+bun index.ts generate-csv active
 
 # To export past due subscriptions
-bun run start past_due
+bun index.ts generate-csv past_due
+```
+
+### Process Customers
+
+Process customers from the generated CSV file:
+
+```bash
+bun index.ts process-customers
 ```
 
 ### Development Mode
@@ -48,7 +61,7 @@ bun run start past_due
 For development, you can use watch mode which automatically restarts the script when changes are detected:
 
 ```bash
-bun run dev active
+bun run dev generate-csv active
 ```
 
 ## Generated Files
@@ -59,6 +72,10 @@ bun run dev active
 ## Project Structure
 
 - `index.ts`: Main script file
+- `commands/`: Directory containing command implementations
+  - `generate-csv.command.ts`: Command for generating CSV files
+  - `process-customers.command.ts`: Command for processing customer data
+- `services/`: Directory containing service implementations
 - `package.json`: Project settings and dependencies
 - `.env`: Environment configuration (not versioned)
 

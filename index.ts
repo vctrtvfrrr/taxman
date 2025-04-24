@@ -1,21 +1,54 @@
-import { generateCSV } from "./services/generate-csv";
+import { GenerateCsvCommand } from "./commands/generate-csv.command";
+import { ProcessCustomersCommand } from "./commands/process-customers.command";
 import type { StripeSubscriptionStatus } from "./types";
 
-// Get status from command line arguments and validate it
-const validStatuses = ["active", "past_due"] as const;
-const statusArg = process.argv[2] as StripeSubscriptionStatus;
+type Command = "generate-csv" | "process-customers";
 
-if (!statusArg || !validStatuses.includes(statusArg)) {
-  console.error(
-    "❌ Error: Status parameter is required and must be either 'active' or 'past_due'"
-  );
-  console.error("Usage: bun index.ts <status>");
-  console.error("Example: bun index.ts active");
+const validStatuses = ["active", "past_due"] as const;
+
+function printUsage() {
+  console.error("Usage: bun index.ts <command> [options]");
+  console.error("\nCommands:");
+  console.error("  generate-csv <status>  Generate CSV file for customers with given status");
+  console.error("  process-customers      Process customers from the generated CSV file");
+  console.error("\nOptions:");
+  console.error("  status: 'active' or 'past_due' (required for generate-csv command)");
+  console.error("\nExamples:");
+  console.error("  bun index.ts generate-csv active");
+  console.error("  bun index.ts process-customers");
   process.exit(1);
 }
 
 async function main() {
-  await generateCSV(statusArg);
+  const command = process.argv[2] as Command;
+  
+  if (!command) {
+    printUsage();
+  }
+
+  switch (command) {
+    case "generate-csv": {
+      const statusArg = process.argv[3] as StripeSubscriptionStatus;
+      if (!statusArg || !validStatuses.includes(statusArg)) {
+        console.error("❌ Error: Status parameter is required and must be either 'active' or 'past_due'");
+        printUsage();
+      }
+      const cmd = new GenerateCsvCommand(statusArg);
+      await cmd.execute();
+      break;
+    }
+    case "process-customers": {
+      const cmd = new ProcessCustomersCommand();
+      await cmd.execute();
+      break;
+    }
+    default:
+      console.error(`❌ Error: Unknown command '${command}'`);
+      printUsage();
+  }
 }
 
-main();
+main().catch((error) => {
+  console.error("❌ Error:", error);
+  process.exit(1);
+});
