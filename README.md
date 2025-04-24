@@ -10,6 +10,7 @@ Taxman is a command-line tool developed in TypeScript that integrates with the S
 - Maintains a cursor to allow resuming interrupted exports
 - Integrates customer data with subscription information
 - Processes customer data from generated CSV files
+- Enables automatic tax for subscriptions directly from Stripe
 
 ## Prerequisites
 
@@ -56,6 +57,18 @@ Process customers from the generated CSV file:
 bun index.ts process-customers
 ```
 
+### Process Subscriptions
+
+Process subscriptions directly from Stripe to enable automatic tax:
+
+```bash
+# To process active subscriptions
+bun index.ts process-subscriptions active
+
+# To process past due subscriptions
+bun index.ts process-subscriptions past_due
+```
+
 ### Development Mode
 
 For development, you can use watch mode which automatically restarts the script when changes are detected:
@@ -75,6 +88,7 @@ bun run dev generate-csv active
 - `commands/`: Directory containing command implementations
   - `generate-csv.command.ts`: Command for generating CSV files
   - `process-customers.command.ts`: Command for processing customer data
+  - `process-subscriptions.command.ts`: Command for processing subscriptions directly from Stripe
 - `services/`: Directory containing service implementations
 - `package.json`: Project settings and dependencies
 - `.env`: Environment configuration (not versioned)

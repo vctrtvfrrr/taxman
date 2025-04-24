@@ -1,21 +1,24 @@
 import { GenerateCsvCommand } from "./commands/generate-csv.command";
 import { ProcessCustomersCommand } from "./commands/process-customers.command";
+import { ProcessSubscriptionsCommand } from "./commands/process-subscriptions.command";
 import type { StripeSubscriptionStatus } from "./types";
 
-type Command = "generate-csv" | "process-customers";
+type Command = "generate-csv" | "process-customers" | "process-subscriptions";
 
 const validStatuses = ["active", "past_due"] as const;
 
 function printUsage() {
-  console.error("Usage: bun index.ts <command> [options]");
+  console.error("Usage: bun <command> [options]");
   console.error("\nCommands:");
-  console.error("  generate-csv <status>  Generate CSV file for customers with given status");
-  console.error("  process-customers      Process customers from the generated CSV file");
+  console.error("  generate-csv <status>            Generate CSV file for customers with given status");
+  console.error("  process-customers                Process customers from the generated CSV file");
+  console.error("  process-subscriptions <status>   Process all active subscriptions to enable automatic tax");
   console.error("\nOptions:");
   console.error("  status: 'active' or 'past_due' (required for generate-csv command)");
   console.error("\nExamples:");
-  console.error("  bun index.ts generate-csv active");
-  console.error("  bun index.ts process-customers");
+  console.error("  bun generate-csv active");
+  console.error("  bun process-customers");
+  console.error("  bun process-subscriptions active");
   process.exit(1);
 }
 
@@ -39,6 +42,16 @@ async function main() {
     }
     case "process-customers": {
       const cmd = new ProcessCustomersCommand();
+      await cmd.execute();
+      break;
+    }
+    case "process-subscriptions": {
+      const statusArg = process.argv[3] as StripeSubscriptionStatus;
+      if (!statusArg || !validStatuses.includes(statusArg)) {
+        console.error("❌ Error: Status parameter is required and must be either 'active' or 'past_due'");
+        printUsage();
+      }
+      const cmd = new ProcessSubscriptionsCommand(statusArg);
       await cmd.execute();
       break;
     }
