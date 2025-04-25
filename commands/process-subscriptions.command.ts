@@ -1,8 +1,31 @@
+import fs from "fs";
 import { StripeSDK } from "../services/stripe";
 import type { StripeSubscriptionStatus } from "../types";
 
+const CURSOR_FILE = "subscription-cursor.txt";
+
 export class ProcessSubscriptionsCommand {
   constructor(private status: StripeSubscriptionStatus) {}
+
+  async saveCursor(cursor: string | undefined) {
+    if (cursor) {
+      fs.writeFileSync(CURSOR_FILE, cursor);
+      console.log(`📝 Cursor saved: ${cursor}`);
+      return;
+    }
+
+    // If no cursor, remove the file to indicate completion
+    if (fs.existsSync(CURSOR_FILE)) fs.unlinkSync(CURSOR_FILE);
+  }
+
+  async loadCursor(): Promise<string | undefined> {
+    if (fs.existsSync(CURSOR_FILE)) {
+      const cursor = fs.readFileSync(CURSOR_FILE, "utf-8").trim();
+      console.log(`📝 Resuming from cursor: ${cursor}`);
+      return cursor;
+    }
+    return undefined;
+  }
 
   async execute(): Promise<void> {
     try {
@@ -11,7 +34,9 @@ export class ProcessSubscriptionsCommand {
       let successCount = 0;
       let errorCount = 0;
       let hasMore = true;
-      let lastSubscriptionId: string | undefined;
+
+      // Load the last cursor if it exists
+      let lastSubscriptionId = await this.loadCursor();
 
       while (hasMore) {
         const stripeSubscriptions = await StripeSDK.subscriptions.list({
@@ -30,6 +55,9 @@ export class ProcessSubscriptionsCommand {
           console.log(
             `\n📝 Processing subscription ${processedCount} - ${subscription.id}`
           );
+
+          // Save the cursor after processing each subscription
+          await this.saveCursor(subscription.id);
 
           try {
             // Check if automatic tax is already enabled
@@ -60,6 +88,9 @@ export class ProcessSubscriptionsCommand {
             stripeSubscriptions.data[stripeSubscriptions.data.length - 1].id;
         }
       }
+
+      // Clear the cursor file when processing is complete
+      await this.saveCursor(undefined);
 
       console.log("\n📊 Processing Summary:");
       console.log(`   - Total subscriptions processed: ${processedCount}`);

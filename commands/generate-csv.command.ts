@@ -5,7 +5,7 @@ import { StripeSDK } from "../services/stripe";
 import type { CustomerData, StripeSubscriptionStatus } from "../types";
 
 const CUSTOMERS_FILE = "customers.csv";
-const CURSOR_FILE = "cursor.txt";
+const CURSOR_FILE = "generate-csv-cursor.txt";
 
 export class GenerateCsvCommand {
   constructor(private status: StripeSubscriptionStatus) {}
@@ -20,7 +20,6 @@ export class GenerateCsvCommand {
     if (cursor) {
       fs.writeFileSync(CURSOR_FILE, cursor);
       console.log(`📝 Cursor saved: ${cursor}`);
-      await new Promise((resolve) => setTimeout(resolve, 5));
       return;
     }
 
