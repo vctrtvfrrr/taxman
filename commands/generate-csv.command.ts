@@ -4,6 +4,7 @@ import Stripe from "stripe";
 import { StripeSDK } from "../services/stripe";
 import type { CustomerData, StripeSubscriptionStatus } from "../types";
 
+const STATES = process.env.STATES?.split(",") || [];
 const CUSTOMERS_FILE = "customers.csv";
 const CURSOR_FILE = "generate-csv-cursor.txt";
 
@@ -95,7 +96,7 @@ export class GenerateCsvCommand {
           if (
             !stripeCustomer.address ||
             stripeCustomer.address.country !== "US" ||
-            !["NY", "KY", "HI"].includes(stripeCustomer.address.state!)
+            !STATES.includes(stripeCustomer.address.state!)
           ) {
             continue;
           }
